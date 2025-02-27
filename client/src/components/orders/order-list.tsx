@@ -5,7 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Loader2, CheckCircle, TruckIcon } from "lucide-react";
+import { Loader2, CheckCircle, TruckIcon, Clock } from "lucide-react";
 
 interface OrderListProps {
   orders: Order[];
@@ -50,6 +50,28 @@ export default function OrderList({ orders, userType }: OrderListProps) {
     }
   };
 
+  const getStatusMessage = (status: string) => {
+    switch (status) {
+      case "placed":
+        return "Order Placed";
+      case "accepted":
+        return "Product is on the way";
+      case "delivered":
+        return "Delivered";
+      default:
+        return status;
+    }
+  };
+
+  const formatDeliveryTime = (minutes: number) => {
+    if (minutes < 60) {
+      return `${minutes} minutes`;
+    }
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${hours} hour${hours > 1 ? 's' : ''} ${remainingMinutes > 0 ? `${remainingMinutes} minutes` : ''}`;
+  };
+
   return (
     <div className="space-y-4">
       {orders.length === 0 ? (
@@ -74,7 +96,7 @@ export default function OrderList({ orders, userType }: OrderListProps) {
                     order.status
                   )}`}
                 >
-                  {order.status}
+                  {getStatusMessage(order.status)}
                 </span>
               </div>
 
@@ -85,6 +107,12 @@ export default function OrderList({ orders, userType }: OrderListProps) {
                     <p className="text-sm text-muted-foreground">
                       Quantity: {order.quantity}
                     </p>
+                    {order.estimatedDeliveryTime && (order.status === "placed" || order.status === "accepted") && (
+                      <p className="text-sm text-muted-foreground flex items-center mt-1">
+                        <Clock className="h-4 w-4 mr-1" />
+                        Estimated delivery in: {formatDeliveryTime(Math.ceil(order.estimatedDeliveryTime / 60))}
+                      </p>
+                    )}
                     <p className="text-sm text-muted-foreground mt-1">
                       Delivery to: {order.deliveryAddress}
                     </p>
