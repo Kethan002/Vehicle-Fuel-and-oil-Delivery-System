@@ -24,13 +24,19 @@ export function CartModal() {
       // Create an order for each item in the cart
       const orders = await Promise.all(
         items.map(async (item) => {
-          const res = await apiRequest("POST", "/api/orders", {
+          const orderData = {
             productId: item.product.id,
-            quantity: Number(item.quantity),
-            deliveryLatitude: Number(item.product.deliveryLatitude),
-            deliveryLongitude: Number(item.product.deliveryLongitude),
+            quantity: String(item.quantity), // Convert to string as expected by schema
+            deliveryLatitude: String(item.product.deliveryLatitude), // Convert to string
+            deliveryLongitude: String(item.product.deliveryLongitude), // Convert to string
             deliveryAddress: item.product.deliveryAddress,
-          });
+          };
+
+          const res = await apiRequest("POST", "/api/orders", orderData);
+          if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.message || 'Failed to place order');
+          }
           return res.json();
         })
       );

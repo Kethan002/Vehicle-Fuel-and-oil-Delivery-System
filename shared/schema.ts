@@ -76,7 +76,8 @@ export const insertOrderSchema = createInsertSchema(orders).pick({
   quantity: true,
   deliveryLatitude: true,
   deliveryLongitude: true,
-  deliveryAddress: true
+  deliveryAddress: true,
+  estimatedDeliveryTime: true
 });
 
 export const insertReviewSchema = createInsertSchema(reviews).pick({
