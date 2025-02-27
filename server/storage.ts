@@ -9,23 +9,24 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  
+  getSellers(): Promise<User[]>; // Added getSellers method
+
   // Product operations
   getProducts(): Promise<Product[]>;
   getProductById(id: number): Promise<Product | undefined>;
   createProduct(sellerId: number, product: InsertProduct): Promise<Product>;
   updateProduct(id: number, update: Partial<Product>): Promise<Product>;
-  
+
   // Order operations
   createOrder(userId: number, sellerId: number, order: InsertOrder): Promise<Order>;
   getOrdersByUser(userId: number): Promise<Order[]>;
   getOrdersBySeller(sellerId: number): Promise<Order[]>;
   updateOrderStatus(id: number, status: Order["status"]): Promise<Order>;
-  
+
   // Review operations
   createReview(userId: number, sellerId: number, review: InsertReview): Promise<Review>;
   getReviewsBySeller(sellerId: number): Promise<Review[]>;
-  
+
   sessionStore: session.SessionStore;
 }
 
@@ -90,7 +91,7 @@ export class MemStorage implements IStorage {
     const id = this.currentId.orders++;
     const product = await this.getProductById(order.productId);
     if (!product) throw new Error("Product not found");
-    
+
     const newOrder = {
       ...order,
       id,
@@ -100,7 +101,7 @@ export class MemStorage implements IStorage {
       status: "placed" as const,
       createdAt: new Date()
     };
-    
+
     this.orders.set(id, newOrder);
     return newOrder;
   }
@@ -136,6 +137,10 @@ export class MemStorage implements IStorage {
 
   async getReviewsBySeller(sellerId: number): Promise<Review[]> {
     return Array.from(this.reviews.values()).filter(r => r.sellerId === sellerId);
+  }
+
+  async getSellers(): Promise<User[]> {
+    return Array.from(this.users.values()).filter(u => u.role === "seller");
   }
 }
 

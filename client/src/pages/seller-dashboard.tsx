@@ -39,6 +39,7 @@ export default function SellerDashboard() {
       price: 0,
       unit: "liter",
       available: true,
+      productType: "fuel" //Added default value
     },
   });
 
@@ -146,6 +147,25 @@ export default function SellerDashboard() {
                       <FormLabel>Description</FormLabel>
                       <FormControl>
                         <Textarea {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="productType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Product Type</FormLabel>
+                      <FormControl>
+                        <select
+                          {...field}
+                          className="w-full rounded-md border border-input bg-background px-3 py-2"
+                        >
+                          <option value="fuel">Fuel</option>
+                          <option value="oil">Vehicle Oil</option>
+                        </select>
                       </FormControl>
                       <FormMessage />
                     </FormItem>

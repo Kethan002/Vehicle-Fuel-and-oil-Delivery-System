@@ -54,6 +54,21 @@ export default function Dashboard() {
       Number(seller.longitude)
     );
     return distance <= 10; // Show sellers within 10km radius
+  }).sort((a, b) => {
+    if (!coordinates || !a.latitude || !a.longitude || !b.latitude || !b.longitude) return 0;
+    const distanceA = calculateDistance(
+      coordinates.lat,
+      coordinates.lng,
+      Number(a.latitude),
+      Number(a.longitude)
+    );
+    const distanceB = calculateDistance(
+      coordinates.lat,
+      coordinates.lng,
+      Number(b.latitude),
+      Number(b.longitude)
+    );
+    return distanceA - distanceB; // Sort by nearest first
   });
 
   if (isLoadingProducts || isLoadingOrders) {
