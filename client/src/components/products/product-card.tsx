@@ -2,12 +2,11 @@ import { useState, useEffect } from "react";
 import { Product } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useAuth } from "@/hooks/use-auth";
 import { Input } from "@/components/ui/input";
-import { Loader2, Navigation } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import { useCart } from "@/hooks/use-cart";
+import { Navigation, ShoppingCart } from "lucide-react";
 
 interface ProductCardProps {
   product: Product;
@@ -20,6 +19,7 @@ interface ProductCardProps {
 export default function ProductCard({ product, sellerLocation }: ProductCardProps) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { addToCart } = useCart();
   const [quantity, setQuantity] = useState("1");
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number; address: string } | null>(null);
 
@@ -47,35 +47,7 @@ export default function ProductCard({ product, sellerLocation }: ProductCardProp
     }
   }, []);
 
-  const orderMutation = useMutation({
-    mutationFn: async (data: {
-      productId: number;
-      quantity: number;
-      deliveryLatitude: number;
-      deliveryLongitude: number;
-      deliveryAddress: string;
-    }) => {
-      const res = await apiRequest("POST", "/api/orders", data);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
-      toast({
-        title: "Order placed successfully",
-        description: "Your order has been placed and will be delivered soon",
-      });
-      setQuantity("1");
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Failed to place order",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleOrder = () => {
+  const handleAddToCart = () => {
     if (!product.available) {
       toast({
         title: "Product unavailable",
@@ -94,13 +66,15 @@ export default function ProductCard({ product, sellerLocation }: ProductCardProp
       return;
     }
 
-    orderMutation.mutate({
-      productId: product.id,
-      quantity: Number(quantity),
+    const productWithLocation = {
+      ...product,
       deliveryLatitude: userLocation.lat,
       deliveryLongitude: userLocation.lng,
-      deliveryAddress: userLocation.address
-    });
+      deliveryAddress: userLocation.address,
+    };
+
+    addToCart(productWithLocation, Number(quantity));
+    setQuantity("1");
   };
 
   return (
@@ -144,13 +118,11 @@ export default function ProductCard({ product, sellerLocation }: ProductCardProp
                 />
                 <Button
                   className="flex-1"
-                  onClick={handleOrder}
-                  disabled={orderMutation.isPending || !product.available}
+                  onClick={handleAddToCart}
+                  disabled={!product.available}
                 >
-                  {orderMutation.isPending && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  Order Now
+                  <ShoppingCart className="mr-2 h-4 w-4" />
+                  Add to Cart
                 </Button>
               </div>
               <p className="text-sm text-muted-foreground">

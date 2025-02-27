@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
+import { CartModal } from "@/components/cart/cart-modal";
 
 export default function Navbar() {
   const [location] = useLocation();
@@ -37,6 +38,7 @@ export default function Navbar() {
           <span className="text-sm text-muted-foreground">
             {user.name} ({user.role})
           </span>
+          {user.role === "user" && <CartModal />}
           <Button
             variant="ghost"
             size="icon"
