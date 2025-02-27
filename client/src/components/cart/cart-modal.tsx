@@ -26,9 +26,9 @@ export function CartModal() {
         items.map(async (item) => {
           const res = await apiRequest("POST", "/api/orders", {
             productId: item.product.id,
-            quantity: item.quantity,
-            deliveryLatitude: item.product.deliveryLatitude,
-            deliveryLongitude: item.product.deliveryLongitude,
+            quantity: Number(item.quantity),
+            deliveryLatitude: Number(item.product.deliveryLatitude),
+            deliveryLongitude: Number(item.product.deliveryLongitude),
             deliveryAddress: item.product.deliveryAddress,
           });
           return res.json();
