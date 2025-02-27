@@ -6,6 +6,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Loader2, CheckCircle, TruckIcon } from "lucide-react";
+import { calculateDeliveryTime } from "@/lib/utils";
 
 interface OrderListProps {
   orders: Order[];
@@ -84,6 +85,14 @@ export default function OrderList({ orders, userType }: OrderListProps) {
                     <p className="text-lg font-medium">₹{order.totalAmount}</p>
                     <p className="text-sm text-muted-foreground">
                       Quantity: {order.quantity}
+                    </p>
+                    {order.estimatedDeliveryTime && (
+                      <p className="text-sm text-muted-foreground">
+                        Estimated delivery in: {Math.ceil(order.estimatedDeliveryTime / 60)} minutes
+                      </p>
+                    )}
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Delivery to: {order.deliveryAddress}
                     </p>
                   </div>
 

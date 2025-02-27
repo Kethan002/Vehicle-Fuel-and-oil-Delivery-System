@@ -9,7 +9,10 @@ export const users = pgTable("users", {
   role: text("role", { enum: ["user", "seller", "admin"] }).notNull().default("user"),
   name: text("name").notNull(),
   phone: text("phone").notNull(),
-  address: text("address").notNull()
+  address: text("address").notNull(),
+  bunkName: text("bunk_name"),
+  latitude: decimal("latitude"),
+  longitude: decimal("longitude")
 });
 
 export const products = pgTable("products", {
@@ -19,6 +22,7 @@ export const products = pgTable("products", {
   description: text("description").notNull(),
   price: decimal("price").notNull(),
   unit: text("unit").notNull(),
+  productType: text("product_type", { enum: ["fuel", "oil"] }).notNull(),
   available: boolean("available").notNull().default(true)
 });
 
@@ -30,7 +34,11 @@ export const orders = pgTable("orders", {
   quantity: decimal("quantity").notNull(),
   totalAmount: decimal("total_amount").notNull(),
   status: text("status", { enum: ["placed", "accepted", "delivered"] }).notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow()
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  estimatedDeliveryTime: integer("estimated_delivery_time"),
+  deliveryLatitude: decimal("delivery_latitude").notNull(),
+  deliveryLongitude: decimal("delivery_longitude").notNull(),
+  deliveryAddress: text("delivery_address").notNull()
 });
 
 export const reviews = pgTable("reviews", {
@@ -48,7 +56,10 @@ export const insertUserSchema = createInsertSchema(users).pick({
   role: true,
   name: true,
   phone: true,
-  address: true
+  address: true,
+  bunkName: true,
+  latitude: true,
+  longitude: true
 });
 
 export const insertProductSchema = createInsertSchema(products).pick({
@@ -56,12 +67,16 @@ export const insertProductSchema = createInsertSchema(products).pick({
   description: true,
   price: true,
   unit: true,
+  productType: true,
   available: true
 });
 
 export const insertOrderSchema = createInsertSchema(orders).pick({
   productId: true,
-  quantity: true
+  quantity: true,
+  deliveryLatitude: true,
+  deliveryLongitude: true,
+  deliveryAddress: true
 });
 
 export const insertReviewSchema = createInsertSchema(reviews).pick({

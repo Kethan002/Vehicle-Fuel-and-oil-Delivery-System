@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Product } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,21 +6,55 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
-import { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Loader2 } from "lucide-react";
+import { Loader2, Navigation } from "lucide-react";
 
 interface ProductCardProps {
   product: Product;
+  sellerLocation: {
+    lat: number;
+    lng: number;
+  };
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({ product, sellerLocation }: ProductCardProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const [quantity, setQuantity] = useState("1");
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number; address: string } | null>(null);
+
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(async (position) => {
+        const { latitude, longitude } = position.coords;
+
+        // Get address from coordinates using reverse geocoding
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+          );
+          const data = await response.json();
+
+          setUserLocation({
+            lat: latitude,
+            lng: longitude,
+            address: data.display_name
+          });
+        } catch (error) {
+          console.error("Error getting address:", error);
+        }
+      });
+    }
+  }, []);
 
   const orderMutation = useMutation({
-    mutationFn: async (data: { productId: number; quantity: number }) => {
+    mutationFn: async (data: {
+      productId: number;
+      quantity: number;
+      deliveryLatitude: number;
+      deliveryLongitude: number;
+      deliveryAddress: string;
+    }) => {
       const res = await apiRequest("POST", "/api/orders", data);
       return res.json();
     },
@@ -50,9 +85,21 @@ export default function ProductCard({ product }: ProductCardProps) {
       return;
     }
 
+    if (!userLocation) {
+      toast({
+        title: "Location required",
+        description: "Please enable location services to place an order",
+        variant: "destructive",
+      });
+      return;
+    }
+
     orderMutation.mutate({
       productId: product.id,
       quantity: Number(quantity),
+      deliveryLatitude: userLocation.lat,
+      deliveryLongitude: userLocation.lng,
+      deliveryAddress: userLocation.address
     });
   };
 
@@ -71,7 +118,10 @@ export default function ProductCard({ product }: ProductCardProps) {
             {product.available ? "In Stock" : "Out of Stock"}
           </span>
         </div>
-        <p className="text-sm text-muted-foreground">{product.description}</p>
+        <div className="flex items-center text-sm text-muted-foreground">
+          <span className="capitalize mr-2">{product.productType}</span>
+          {product.description && <span>• {product.description}</span>}
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
@@ -103,9 +153,15 @@ export default function ProductCard({ product }: ProductCardProps) {
                   Order Now
                 </Button>
               </div>
-              <p className="text-sm text-muted-foreground text-right">
+              <p className="text-sm text-muted-foreground">
                 Total: ₹{(Number(quantity) * Number(product.price)).toFixed(2)}
               </p>
+              {userLocation && (
+                <div className="text-sm text-muted-foreground flex items-center">
+                  <Navigation className="h-4 w-4 mr-1" />
+                  Delivery to: {userLocation.address}
+                </div>
+              )}
             </div>
           )}
         </div>

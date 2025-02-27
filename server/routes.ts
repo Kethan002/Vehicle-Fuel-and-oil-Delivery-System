@@ -49,17 +49,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const product = await storage.getProductById(result.data.productId);
     if (!product) return res.status(404).send("Product not found");
 
-    const order = await storage.createOrder(req.user.id, product.sellerId, result.data);
+    const seller = await storage.getUser(product.sellerId);
+    if (!seller) return res.status(404).send("Seller not found");
+
+    // Calculate estimated delivery time based on distance
+    const distance = calculateDistance(
+      Number(seller.latitude),
+      Number(seller.longitude),
+      result.data.deliveryLatitude,
+      result.data.deliveryLongitude
+    );
+
+    // Estimate 2 minutes per kilometer plus 10 minutes for preparation
+    const estimatedDeliveryTime = Math.ceil(distance * 2 * 60) + 600; // in seconds
+
+    const order = await storage.createOrder(
+      req.user.id,
+      product.sellerId,
+      {
+        ...result.data,
+        estimatedDeliveryTime
+      }
+    );
+
     res.status(201).json(order);
   });
 
   app.get("/api/orders", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
 
-    const orders = req.user.role === "seller" 
+    const orders = req.user.role === "seller"
       ? await storage.getOrdersBySeller(req.user.id)
       : await storage.getOrdersByUser(req.user.id);
-    
+
     res.json(orders);
   });
 
@@ -97,6 +119,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const reviews = await storage.getReviewsBySeller(Number(req.params.id));
     res.json(reviews);
   });
+
+  // Get all sellers endpoint
+  app.get("/api/sellers", async (_req, res) => {
+    const sellers = await storage.getSellers();
+    res.json(sellers);
+  });
+
+  // Add utility function for distance calculation
+  function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371; // Radius of the Earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
 
   const httpServer = createServer(app);
   return httpServer;

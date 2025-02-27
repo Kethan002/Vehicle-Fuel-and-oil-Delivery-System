@@ -9,9 +9,22 @@ import { useForm } from "react-hook-form";
 import { Redirect } from "wouter";
 import { insertUserSchema } from "@shared/schema";
 import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
+  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null);
+
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition((position) => {
+        setCoordinates({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      });
+    }
+  }, []);
 
   const loginForm = useForm({
     resolver: zodResolver(insertUserSchema.pick({ username: true, password: true })),
@@ -19,9 +32,16 @@ export default function AuthPage() {
 
   const registerForm = useForm({
     resolver: zodResolver(insertUserSchema),
+    defaultValues: {
+      role: "user",
+      latitude: coordinates?.lat,
+      longitude: coordinates?.lng,
+    },
   });
 
-  if (user) return <Redirect to="/" />;
+  if (user) {
+    return <Redirect to={user.role === "seller" ? "/seller" : "/"} />;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10 p-4">
@@ -47,7 +67,10 @@ export default function AuthPage() {
                 </CardHeader>
                 <CardContent>
                   <Form {...loginForm}>
-                    <form onSubmit={loginForm.handleSubmit(data => loginMutation.mutate(data))} className="space-y-4">
+                    <form
+                      onSubmit={loginForm.handleSubmit((data) => loginMutation.mutate(data))}
+                      className="space-y-4"
+                    >
                       <FormField
                         control={loginForm.control}
                         name="username"
@@ -75,7 +98,9 @@ export default function AuthPage() {
                         )}
                       />
                       <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
-                        {loginMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {loginMutation.isPending && (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        )}
                         Login
                       </Button>
                     </form>
@@ -91,7 +116,10 @@ export default function AuthPage() {
                 </CardHeader>
                 <CardContent>
                   <Form {...registerForm}>
-                    <form onSubmit={registerForm.handleSubmit(data => registerMutation.mutate(data))} className="space-y-4">
+                    <form
+                      onSubmit={registerForm.handleSubmit((data) => registerMutation.mutate(data))}
+                      className="space-y-4"
+                    >
                       <FormField
                         control={registerForm.control}
                         name="username"
@@ -176,8 +204,35 @@ export default function AuthPage() {
                           </FormItem>
                         )}
                       />
+                      {registerForm.watch("role") === "seller" && (
+                        <FormField
+                          control={registerForm.control}
+                          name="bunkName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Bunk Name</FormLabel>
+                              <FormControl>
+                                <Input {...field} required />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
+                      <input
+                        type="hidden"
+                        {...registerForm.register("latitude")}
+                        value={coordinates?.lat}
+                      />
+                      <input
+                        type="hidden"
+                        {...registerForm.register("longitude")}
+                        value={coordinates?.lng}
+                      />
                       <Button type="submit" className="w-full" disabled={registerMutation.isPending}>
-                        {registerMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {registerMutation.isPending && (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        )}
                         Register
                       </Button>
                     </form>
