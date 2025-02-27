@@ -85,6 +85,9 @@ export const insertReviewSchema = createInsertSchema(reviews).pick({
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type InsertProduct = z.infer<typeof insertProductSchema>;
+export type InsertOrder = z.infer<typeof insertOrderSchema>;
+export type InsertReview = z.infer<typeof insertReviewSchema>;
 export type User = typeof users.$inferSelect;
 export type Product = typeof products.$inferSelect;
 export type Order = typeof orders.$inferSelect;

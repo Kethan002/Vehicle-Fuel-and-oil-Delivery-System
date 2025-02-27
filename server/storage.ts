@@ -1,15 +1,19 @@
-import { User, InsertUser, Product, InsertProduct, Order, InsertOrder, Review, InsertReview } from "@shared/schema";
+import { users, products, orders, reviews } from "@shared/schema";
+import type { User, InsertUser, Product, InsertProduct, Order, InsertOrder, Review, InsertReview } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 import session from "express-session";
-import createMemoryStore from "memorystore";
+import connectPg from "connect-pg-simple";
+import { pool } from "./db";
 
-const MemoryStore = createMemoryStore(session);
+const PostgresSessionStore = connectPg(session);
 
 export interface IStorage {
   // User operations
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  getSellers(): Promise<User[]>; // Added getSellers method
+  getSellers(): Promise<User[]>;
 
   // Product operations
   getProducts(): Promise<Product[]>;
@@ -27,121 +31,115 @@ export interface IStorage {
   createReview(userId: number, sellerId: number, review: InsertReview): Promise<Review>;
   getReviewsBySeller(sellerId: number): Promise<Review[]>;
 
-  sessionStore: session.SessionStore;
+  sessionStore: session.Store;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private products: Map<number, Product>;
-  private orders: Map<number, Order>;
-  private reviews: Map<number, Review>;
-  private currentId: { [key: string]: number };
-  sessionStore: session.SessionStore;
+export class DatabaseStorage implements IStorage {
+  sessionStore: session.Store;
 
   constructor() {
-    this.users = new Map();
-    this.products = new Map();
-    this.orders = new Map();
-    this.reviews = new Map();
-    this.currentId = { users: 1, products: 1, orders: 1, reviews: 1 };
-    this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000 // 24h
+    this.sessionStore = new PostgresSessionStore({
+      pool,
+      createTableIfMissing: true,
     });
   }
 
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(u => u.username === username);
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentId.users++;
-    const user = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
   }
 
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    const [newUser] = await db.insert(users).values(user).returning();
+    return newUser;
+  }
+
   async getProducts(): Promise<Product[]> {
-    return Array.from(this.products.values());
+    return db.select().from(products);
   }
 
   async getProductById(id: number): Promise<Product | undefined> {
-    return this.products.get(id);
+    const [product] = await db.select().from(products).where(eq(products.id, id));
+    return product;
   }
 
   async createProduct(sellerId: number, product: InsertProduct): Promise<Product> {
-    const id = this.currentId.products++;
-    const newProduct = { ...product, id, sellerId };
-    this.products.set(id, newProduct);
+    const [newProduct] = await db
+      .insert(products)
+      .values({ ...product, sellerId })
+      .returning();
     return newProduct;
   }
 
   async updateProduct(id: number, update: Partial<Product>): Promise<Product> {
-    const product = this.products.get(id);
-    if (!product) throw new Error("Product not found");
-    const updated = { ...product, ...update };
-    this.products.set(id, updated);
+    const [updated] = await db
+      .update(products)
+      .set(update)
+      .where(eq(products.id, id))
+      .returning();
     return updated;
   }
 
   async createOrder(userId: number, sellerId: number, order: InsertOrder): Promise<Order> {
-    const id = this.currentId.orders++;
     const product = await this.getProductById(order.productId);
     if (!product) throw new Error("Product not found");
 
-    const newOrder = {
-      ...order,
-      id,
-      userId,
-      sellerId,
-      totalAmount: order.quantity * Number(product.price),
-      status: "placed" as const,
-      createdAt: new Date()
-    };
-
-    this.orders.set(id, newOrder);
+    const [newOrder] = await db
+      .insert(orders)
+      .values({
+        ...order,
+        userId,
+        sellerId,
+        totalAmount: String(Number(product.price) * Number(order.quantity)),
+        status: "placed",
+        createdAt: new Date(),
+      })
+      .returning();
     return newOrder;
   }
 
   async getOrdersByUser(userId: number): Promise<Order[]> {
-    return Array.from(this.orders.values()).filter(o => o.userId === userId);
+    return db.select().from(orders).where(eq(orders.userId, userId));
   }
 
   async getOrdersBySeller(sellerId: number): Promise<Order[]> {
-    return Array.from(this.orders.values()).filter(o => o.sellerId === sellerId);
+    return db.select().from(orders).where(eq(orders.sellerId, sellerId));
   }
 
   async updateOrderStatus(id: number, status: Order["status"]): Promise<Order> {
-    const order = this.orders.get(id);
-    if (!order) throw new Error("Order not found");
-    const updated = { ...order, status };
-    this.orders.set(id, updated);
+    const [updated] = await db
+      .update(orders)
+      .set({ status })
+      .where(eq(orders.id, id))
+      .returning();
     return updated;
   }
 
   async createReview(userId: number, sellerId: number, review: InsertReview): Promise<Review> {
-    const id = this.currentId.reviews++;
-    const newReview = {
-      ...review,
-      id,
-      userId,
-      sellerId,
-      createdAt: new Date()
-    };
-    this.reviews.set(id, newReview);
+    const [newReview] = await db
+      .insert(reviews)
+      .values({
+        ...review,
+        userId,
+        sellerId,
+        createdAt: new Date(),
+      })
+      .returning();
     return newReview;
   }
 
   async getReviewsBySeller(sellerId: number): Promise<Review[]> {
-    return Array.from(this.reviews.values()).filter(r => r.sellerId === sellerId);
+    return db.select().from(reviews).where(eq(reviews.sellerId, sellerId));
   }
 
   async getSellers(): Promise<User[]> {
-    return Array.from(this.users.values()).filter(u => u.role === "seller");
+    return db.select().from(users).where(eq(users.role, "seller"));
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
